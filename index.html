@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Complex Square Root in 3D — p5.js WEBGL</title>
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.11.10/lib/p5.min.js"></script>
+  <style>
+    :root{
+      --bg:#f4f4f1;
+      --panel:#ffffff;
+      --ink:#1e1e1e;
+      --muted:#676767;
+      --real:#2f67c8;
+      --imag:#d34a42;
+      --axis:#222;
+      --border:#d7d7d2;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      background:var(--bg);
+      color:var(--ink);
+      font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    .wrap{
+      min-height:100vh;
+      display:grid;
+      grid-template-columns:minmax(0,1fr) 330px;
+    }
+    #sketch-holder{
+      min-height:100vh;
+      position:relative;
+      overflow:hidden;
+    }
+    .panel{
+      background:var(--panel);
+      border-left:1px solid var(--border);
+      padding:24px 22px;
+      display:flex;
+      flex-direction:column;
+      gap:18px;
+      box-shadow:-8px 0 24px rgba(0,0,0,.035);
+      z-index:2;
+    }
+    h1{
+      font-size:20px;
+      line-height:1.2;
+      margin:0;
+    }
+    .subtitle{
+      font-size:13px;
+      color:var(--muted);
+      line-height:1.45;
+      margin-top:-9px;
+    }
+    .equation{
+      font-family:"Times New Roman", Cambria, serif;
+      font-size:30px;
+      text-align:center;
+      padding:10px 12px;
+      border:1px solid var(--border);
+      border-radius:12px;
+      background:#fafafa;
+    }
+    .readout{
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:14px;
+      background:#fafafa;
+    }
+    .readout .big{
+      font-family:"Times New Roman", Cambria, serif;
+      font-size:25px;
+      margin-bottom:6px;
+    }
+    .readout .small{
+      font-size:13px;
+      line-height:1.45;
+      color:var(--muted);
+    }
+    label{
+      font-size:13px;
+      font-weight:650;
+    }
+    input[type="range"]{
+      width:100%;
+      margin-top:8px;
+    }
+    .checks{
+      display:flex;
+      flex-direction:column;
+      gap:9px;
+      font-size:13px;
+    }
+    .checks label{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      font-weight:500;
+    }
+    .buttons{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:8px;
+    }
+    button{
+      border:1px solid var(--border);
+      background:white;
+      color:var(--ink);
+      padding:9px 10px;
+      border-radius:9px;
+      cursor:pointer;
+      font-weight:650;
+    }
+    button:hover{background:#f3f3f0}
+    .legend{
+      display:grid;
+      gap:8px;
+      font-size:13px;
+    }
+    .key{
+      display:flex;
+      gap:9px;
+      align-items:center;
+    }
+    .swatch{
+      width:20px;height:4px;border-radius:999px;
+      background:#222;
+    }
+    .swatch.real{background:var(--real)}
+    .swatch.imag{background:var(--imag)}
+    .note{
+      margin-top:auto;
+      font-size:12px;
+      line-height:1.45;
+      color:var(--muted);
+      padding-top:12px;
+      border-top:1px solid var(--border);
+    }
+    .hint{
+      position:absolute;
+      left:16px;
+      bottom:14px;
+      background:rgba(255,255,255,.88);
+      border:1px solid rgba(0,0,0,.12);
+      padding:7px 10px;
+      border-radius:9px;
+      font-size:12px;
+      pointer-events:none;
+      backdrop-filter:blur(4px);
+    }
+    @media (max-width: 850px){
+      .wrap{grid-template-columns:1fr}
+      #sketch-holder{min-height:65vh}
+      .panel{border-left:0;border-top:1px solid var(--border)}
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div id="sketch-holder">
+    <div class="hint">Drag to rotate • Mouse wheel to zoom</div>
+  </div>
+
+  <aside class="panel">
+    <h1>Where does √x go for x &lt; 0?</h1>
+    <div class="subtitle">
+      A 3D picture of a real input <b>x</b> with a complex output
+      <b>y = Re(y) + Im(y)i</b>.
+    </div>
+
+    <div class="equation">y = √x</div>
+
+    <div>
+      <label for="xSlider">Choose x: <span id="xLabel">−1</span></label>
+      <input id="xSlider" type="range" min="-9" max="9" step="0.25" value="-1">
+    </div>
+
+    <div class="readout">
+      <div class="big" id="sqrtReadout">√(−1) = i</div>
+      <div class="small" id="coordReadout">
+        3D point: (x, Re(y), Im(y)) = (−1, 0, 1)
+      </div>
+    </div>
+
+    <div class="checks">
+      <label><input id="showPlanes" type="checkbox" checked> Show the two perpendicular planes</label>
+      <label><input id="showPoints" type="checkbox" checked> Show landmark points</label>
+      <label><input id="showNegativeBranch" type="checkbox" checked> Show imaginary continuation for x &lt; 0</label>
+    </div>
+
+    <div class="buttons">
+      <button id="resetView">3D view</button>
+      <button id="realView">Usual xy view</button>
+      <button id="imagView">Imaginary view</button>
+      <button id="topView">Look down x-axis</button>
+    </div>
+
+    <div class="legend">
+      <div class="key"><span class="swatch real"></span> Real output: Im(y) = 0</div>
+      <div class="key"><span class="swatch imag"></span> Imaginary output: Re(y) = 0</div>
+      <div class="key"><span class="swatch"></span> Shared x-axis</div>
+    </div>
+
+    <div class="note">
+      This is an embedding of the function <b>ℝ → ℂ</b> into three real dimensions:
+      <b>(x, Re(y), Im(y))</b>. For the principal square root, negative real inputs
+      turn into positive imaginary outputs.
+    </div>
+  </aside>
+</div>
+
+<script>
+let cnv;
+const S = 48;
+const XMIN = -9, XMAX = 9;
+const YMAX = 4.1;
+let selectedX = -1;
+
+const COLORS = {
+  axis:[30,30,30],
+  real:[47,103,200],
+  imag:[211,74,66],
+  grid:[120,120,120],
+  realPlane:[47,103,200],
+  imagPlane:[211,74,66]
+};
+
+function setup(){
+  const holder = document.getElementById('sketch-holder');
+  cnv = createCanvas(holder.clientWidth, holder.clientHeight, WEBGL);
+  cnv.parent('sketch-holder');
+  pixelDensity(Math.min(window.devicePixelRatio || 1, 2));
+  set3DView();
+
+  const slider = document.getElementById('xSlider');
+  slider.addEventListener('input', () => {
+    selectedX = Number(slider.value);
+    updateReadout();
+  });
+
+  document.getElementById('resetView').onclick = set3DView;
+  document.getElementById('realView').onclick = setRealView;
+  document.getElementById('imagView').onclick = setImagView;
+  document.getElementById('topView').onclick = setXAxisView;
+
+  updateReadout();
+}
+
+function windowResized(){
+  const holder = document.getElementById('sketch-holder');
+  resizeCanvas(holder.clientWidth, holder.clientHeight);
+}
+
+function draw(){
+  background(246,246,243);
+  orbitControl(1.05, 1.05, 0.08);
+
+  // Lighting only affects spheres; lines remain crisp.
+  ambientLight(180);
+  directionalLight(255,255,255, -0.4, 0.6, -1);
+
+  if(document.getElementById('showPlanes').checked){
+    drawPlanes();
+  }
+
+  drawGrid();
+  drawAxes();
+  drawCurves();
+
+  if(document.getElementById('showPoints').checked){
+    drawLandmarkPoints();
+  }
+
+  drawSelectedPoint();
+}
+
+function P(x, reY, imY){
+  // p5's +y points downward, so negate Re(y) to make "up" positive.
+  return [x*S, -reY*S, imY*S];
+}
+
+function drawPlanes(){
+  noStroke();
+
+  // Usual x–Re(y) plane: Im(y)=0
+  push();
+  fill(...COLORS.realPlane, 22);
+  beginShape();
+  vertex(...P(XMIN,-YMAX,0));
+  vertex(...P(XMAX,-YMAX,0));
+  vertex(...P(XMAX, YMAX,0));
+  vertex(...P(XMIN, YMAX,0));
+  endShape(CLOSE);
+  pop();
+
+  // x–Im(y) plane: Re(y)=0
+  push();
+  fill(...COLORS.imagPlane, 22);
+  beginShape();
+  vertex(...P(XMIN,0,-YMAX));
+  vertex(...P(XMAX,0,-YMAX));
+  vertex(...P(XMAX,0, YMAX));
+  vertex(...P(XMIN,0, YMAX));
+  endShape(CLOSE);
+  pop();
+}
+
+function drawGrid(){
+  strokeWeight(1);
+  stroke(120,120,120,65);
+
+  // Grid in ordinary x–Re(y) plane
+  for(let x=Math.ceil(XMIN); x<=XMAX; x++){
+    line(...P(x,-YMAX,0), ...P(x,YMAX,0));
+  }
+  for(let y=-4; y<=4; y++){
+    line(...P(XMIN,y,0), ...P(XMAX,y,0));
+  }
+
+  // Grid in x–Im(y) plane
+  for(let x=Math.ceil(XMIN); x<=XMAX; x++){
+    line(...P(x,0,-YMAX), ...P(x,0,YMAX));
+  }
+  for(let z=-4; z<=4; z++){
+    line(...P(XMIN,0,z), ...P(XMAX,0,z));
+  }
+}
+
+function drawAxes(){
+  stroke(...COLORS.axis);
+  strokeWeight(3);
+
+  // x-axis
+  line(...P(XMIN,0,0), ...P(XMAX,0,0));
+
+  // Re(y)-axis
+  stroke(...COLORS.real);
+  line(...P(0,-YMAX,0), ...P(0,YMAX,0));
+
+  // Im(y)-axis
+  stroke(...COLORS.imag);
+  line(...P(0,0,-YMAX), ...P(0,0,YMAX));
+
+  // Tick marks
+  strokeWeight(1.5);
+  const t = 0.09;
+  for(let x=Math.ceil(XMIN); x<=XMAX; x++){
+    line(...P(x,-t,0), ...P(x,t,0));
+  }
+  for(let y=-4; y<=4; y++){
+    line(...P(-t,y,0), ...P(t,y,0));
+  }
+  for(let z=-4; z<=4; z++){
+    line(...P(-t,0,z), ...P(t,0,z));
+  }
+}
+
+function drawCurves(){
+  noFill();
+  strokeWeight(5);
+
+  // x >= 0: y is real.
+  stroke(...COLORS.real);
+  beginShape();
+  for(let x=0; x<=XMAX; x+=0.025){
+    vertex(...P(x, Math.sqrt(x), 0));
+  }
+  endShape();
+
+  // x < 0: principal sqrt is +i sqrt(-x).
+  if(document.getElementById('showNegativeBranch').checked){
+    stroke(...COLORS.imag);
+    beginShape();
+    for(let x=XMIN; x<=0; x+=0.025){
+      vertex(...P(x, 0, Math.sqrt(-x)));
+    }
+    endShape();
+  }
+}
+
+function drawLandmarkPoints(){
+  const xs = [-9,-4,-1,0,1,4,9];
+  for(const x of xs){
+    if(x < 0 && !document.getElementById('showNegativeBranch').checked) continue;
+    if(x < 0){
+      pointSphere(x,0,Math.sqrt(-x), COLORS.imag, 0.09);
+    }else{
+      pointSphere(x,Math.sqrt(x),0, COLORS.real, 0.09);
+    }
+  }
+}
+
+function drawSelectedPoint(){
+  let reY = 0, imY = 0, col;
+  if(selectedX >= 0){
+    reY = Math.sqrt(selectedX);
+    col = COLORS.real;
+  }else{
+    imY = Math.sqrt(-selectedX);
+    col = COLORS.imag;
+  }
+
+  // Dashed guide segment from the chosen point to the shared x-axis.
+  // In WEBGL, drawingContext is a WebGLRenderingContext, which does not
+  // support Canvas2D's setLineDash(). Draw the dashes manually instead.
+  const q = P(selectedX,reY,imY);
+  stroke(...col,150);
+  strokeWeight(1.5);
+  drawDashed3DLine(P(selectedX,0,0), q, 7, 6);
+
+  pointSphere(selectedX,reY,imY,col,0.145);
+
+  // Highlight the matching x-axis input.
+  pointSphere(selectedX,0,0,[35,35,35],0.07);
+}
+
+function drawDashed3DLine(a, b, dashPx=7, gapPx=6){
+  const dx = b[0]-a[0];
+  const dy = b[1]-a[1];
+  const dz = b[2]-a[2];
+  const total = Math.sqrt(dx*dx + dy*dy + dz*dz);
+  if(total < 1e-6) return;
+
+  const cycle = dashPx + gapPx;
+  for(let s=0; s<total; s+=cycle){
+    const e = Math.min(s + dashPx, total);
+    const t0 = s / total;
+    const t1 = e / total;
+
+    line(
+      a[0] + dx*t0, a[1] + dy*t0, a[2] + dz*t0,
+      a[0] + dx*t1, a[1] + dy*t1, a[2] + dz*t1
+    );
+  }
+}
+
+function pointSphere(x,reY,imY,col,rUnits){
+  const q = P(x,reY,imY);
+  push();
+  translate(q[0],q[1],q[2]);
+  noStroke();
+  ambientMaterial(...col);
+  sphere(rUnits*S, 18, 12);
+  pop();
+}
+
+function set3DView(){
+  camera(690,-470,720, 0,-30,0, 0,1,0);
+}
+
+function setRealView(){
+  // Face the ordinary x–Re(y) plane.
+  camera(0,0,980, 0,0,0, 0,1,0);
+}
+
+function setImagView(){
+  // Face the x–Im(y) plane along the Re(y) direction.
+  camera(0,-980,0, 0,0,0, 0,0,1);
+}
+
+function setXAxisView(){
+  // Look approximately down the x-axis so the two output directions are obvious.
+  camera(980,0,0, 0,0,0, 0,1,0);
+}
+
+function nice(n){
+  if(Math.abs(n) < 1e-10) n = 0;
+  const rounded = Math.round(n * 100) / 100;
+  return String(rounded).replace('-', '−');
+}
+
+function isPerfectSquareish(v){
+  const r = Math.sqrt(v);
+  return Math.abs(r - Math.round(r)) < 1e-9;
+}
+
+function updateReadout(){
+  const xText = nice(selectedX);
+  document.getElementById('xLabel').textContent = xText;
+
+  let expr, coord;
+  if(selectedX > 0){
+    const r = Math.sqrt(selectedX);
+    expr = `√(${xText}) = ${nice(r)}`;
+    coord = `(x, Re(y), Im(y)) = (${xText}, ${nice(r)}, 0)`;
+  }else if(selectedX === 0){
+    expr = `√0 = 0`;
+    coord = `(x, Re(y), Im(y)) = (0, 0, 0)`;
+  }else{
+    const a = -selectedX;
+    const r = Math.sqrt(a);
+    let value;
+    if(Math.abs(r-1)<1e-9) value = 'i';
+    else value = `${nice(r)}i`;
+    expr = `√(${xText}) = ${value}`;
+    coord = `(x, Re(y), Im(y)) = (${xText}, 0, ${nice(r)})`;
+  }
+
+  document.getElementById('sqrtReadout').textContent = expr;
+  document.getElementById('coordReadout').textContent = `3D point: ${coord}`;
+}
+</script>
+</body>
+</html>
